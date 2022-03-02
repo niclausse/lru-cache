@@ -2,12 +2,7 @@ package lru
 
 import (
 	"container/list"
-	"errors"
 	"sync"
-)
-
-var (
-	ErrNotExist = errors.New("not exists")
 )
 
 type Cache struct {
@@ -15,6 +10,10 @@ type Cache struct {
 	values   *list.List // use doubly linked list for data storage
 	cacheMap map[interface{}]*list.Element
 	lock     sync.Mutex
+}
+
+type entry struct {
+	key, value interface{}
 }
 
 func NewLRUCache(size int) *Cache {
@@ -25,25 +24,33 @@ func NewLRUCache(size int) *Cache {
 	}
 }
 
-func (c *Cache) Get(key interface{}) (interface{}, error) {
+func (c *Cache) Get(key interface{}) interface{} {
 	e, ok := c.cacheMap[key]
-	if ok {
-		return e.Value, nil
+	if !ok {
+		return nil
 	}
 
-	return nil, ErrNotExist
+	c.values.MoveToFront(e)
+	return e.Value.(*entry).value
 }
 
 func (c *Cache) Put(key, value interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
+	e, ok := c.cacheMap[key]
+	if ok {
+		e.Value.(*entry).value = value
+		c.values.MoveToFront(e)
+		return
+	}
+
 	// 链表实际长度已达预设容量
 	if c.values.Len() == c.cap {
 		tail := c.values.Back()
 		c.values.Remove(tail)
-		delete(c.cacheMap, key)
+		delete(c.cacheMap, tail.Value.(*entry).key)
 	}
 
-	c.cacheMap[key] = c.values.PushFront(value)
+	c.cacheMap[key] = c.values.PushFront(&entry{key: key, value: value})
 }

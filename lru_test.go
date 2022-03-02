@@ -1,7 +1,6 @@
 package lru
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 )
@@ -10,8 +9,8 @@ func TestNewLRUCache(t *testing.T) {
 	l := NewLRUCache(100)
 
 	for i := 1; i <= 100; i++ {
-		v, err := l.Get(i)
-		if errors.Is(err, ErrNotExist) {
+		v := l.Get(i)
+		if v == nil {
 			v = i * 10
 			l.Put(i, v)
 		}
